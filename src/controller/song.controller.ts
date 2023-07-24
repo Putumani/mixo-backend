@@ -2,7 +2,7 @@ import { Response, RequestHandler } from 'express'
 import mongoose, { ObjectId } from 'mongoose'
 import songSchema from '../schema/song.schema'
 
-const isAllowed = (req, res) => {
+export const isAllowed = (req, res) => {
     const referer = req.headers.referer
 
     if (referer !== process.env.ALLOWED_DOMAIN) {
@@ -230,3 +230,67 @@ export const getAllTracks: RequestHandler = async (req, res) => {
         return res.status(303).json({})
     }
 }
+
+export const searchTrack: RequestHandler = async (req, res) => {
+    try {
+      if (!isAllowed(req, res)) return res.status(403).end('Access denied');
+      const query = req.query.query as string;
+  
+      if (!query) {
+        return res.status(400).json({ message: 'Search query is required' });
+      }
+  
+      const page: number = parseInt(`${req.query.page}`) || 1;
+      const limit: number = parseInt(`${req.query.limit}`) || 10;
+  
+      const startIndex = (page - 1) * limit;
+  
+      const countQuery = songSchema.aggregate([
+        {
+          $match: {
+            title: { $regex: query, $options: 'i' },
+            art: {
+              $ne: 'https://slikouronlife.co.za/themes/slikourapp/assets/images/Square-audio-placeholders.png',
+            },
+          },
+        },
+        {
+          $count: 'totalCount',
+        },
+      ]);
+  
+      const response = await songSchema.aggregate([
+        {
+          $match: {
+            title: { $regex: query, $options: 'i' },
+            art: {
+              $ne: 'https://slikouronlife.co.za/themes/slikourapp/assets/images/Square-audio-placeholders.png',
+            },
+          },
+        },
+        {
+          $skip: startIndex,
+        },
+        {
+          $limit: limit,
+        },
+      ]);
+  
+      const [totalCount, data] = await Promise.all([countQuery, response]);
+  
+      const total = totalCount.length > 0 ? totalCount[0].totalCount : 0;
+      const totalPages = Math.ceil(total / limit);
+  
+      return res.status(200).json({
+        data: response,
+        total,
+        totalPages,
+        currentPage: page,
+      });
+    } catch (error) {
+      return res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
+
+
+

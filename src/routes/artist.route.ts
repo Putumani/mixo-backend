@@ -1,8 +1,10 @@
-import { Router } from 'express'
-import * as artist from '../controller/artist.controller'
+import { Router } from 'express';
+import * as artist from '../controller/artist.controller';
 
-const router = Router()
+const router = Router();
 
-router.get('/artist', artist.getArtist)
+router.get('/artist', artist.getArtist);
+router.get('/artist/search', artist.searchArtist); 
 
-export default router
+export default router;
+
